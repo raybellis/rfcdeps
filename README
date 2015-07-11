@@ -1,0 +1,65 @@
+RFC Dependency Graphs
+---------------------
+
+This script produces GraphViz files describing the "obsoletes" and "updates"
+relationship between RFCs, by parsing the meta information contained in the
+RFC Editor's XML version of the RFC index.
+
+Requirements
+------------
+
+- "Dot" (graphviz renderer), with SVG output support
+- Perl 5.x
+- Perl libraries
+  - Getopt::Long 
+  - XML::Simple
+  - Storable
+- the RFC index XML file (see below)
+
+Operation
+---------
+
+To describe a suite of documents a configuration file is required.  A sample
+file for the SMTP suite is below:
+
+  --8<--8<--
+  T:SMTP
+  RFC0822
+  -RFC1349
+  -RFC2181
+  --8<--8<--
+
+The first (optional) line starting "T:" sets the title of the GraphViz document.
+
+The remaining lines specify which RFCs are to be explicitly included (or excluded)
+from the dependency chain.  By default the script will look at both "obsoletes"
+and "obsoleted-by" references (likewise for "updates" and "updated-by") and build
+the dependency graph in both directions.  See the "--help" text for command line
+options to override this behaviour.
+
+The exclusions are particularly important when trying to build a configuration
+file for any specific set of IETF protocols.  In some cases RFCs affect multiple
+protocols, and left to its own devices the dependency following logic would
+automatically extend into all of those sets.
+
+For example, in the SMTP example above, RFC 2181 is excluded from following since
+it also updates various DNS protocol documents.  Without this line, the resulting
+graph would include large portions of the DNS document suite.  Similarly RFC 1349
+(which updates RFC1123) would result in the core IP protocol documents being
+included.
+
+Some sample configuration files are included in the distribution tarball, but note
+that they are themselves are already obsolete, since more RFCs are published all
+of the time.  If those RFCs "update" or "obsolete" prior RFCs then the script will
+find them automatically, but if they are standalone documents they will need to be
+added to the configuration files manually.
+
+The RFC Index File
+------------------
+
+You'll need a copy of the current "rfc-index.xml" file in the same directory as the
+script - if you have "wget" then a call to "make fetch" will download a copy.
+
+The first time you run the script after each download of the XML index the script
+will run more slowly as it parses the XML file.  It will then save a more easily
+parseable version ("rfc-index.dump") which will be used for subsequent runs.

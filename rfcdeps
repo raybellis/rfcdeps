@@ -1,0 +1,341 @@
+#!/opt/local/bin/perl -w
+
+#----------------------------------------------------------------------
+
+use strict;
+use Getopt::Long;
+use XML::Simple;
+use Storable qw[nstore retrieve];
+
+#----------------------------------------------------------------------
+
+sub load_index();
+sub load_list($$$);
+sub clean_list($);
+sub find_dependencies($$$;$);
+sub find_orphans($);
+
+sub output_header();
+sub output_year_list($$);
+sub output_rfcs($);
+sub output_edges($);
+sub output_year_rank($);
+sub output_index($);
+sub output_footer();
+
+#----------------------------------------------------------------------
+
+sub usage()
+{
+  print STDERR <<__EOT__;
+usage: rfcdeps [--help] [--no-orphans] [--no-newer] [--no-older] [--title=title] <file> ...
+
+  --help:        this help text
+  --no-orphans:  exclude RFCs which have no dependencies
+  --no-older:    only look for "updated-by" or "obsoleted-by" dependencies,
+                 and not for "updates" or "obsoletes"
+  --no-newer:    only look for "updates" or "obsoletes" dependencies,
+                 and not for "updated-by" or "obsoleted-by"
+  --title:       override the graph title
+
+__EOT__
+  exit(0);
+}
+
+my ($opt_no_older, $opt_no_newer, $opt_no_orphans,$opt_title);
+
+my $result = GetOptions(
+    "help"	  => sub { usage(); },
+    "no-orphans"  => \$opt_no_orphans,
+    "no-older"	  => \$opt_no_older,
+    "no-newer"	  => \$opt_no_newer,
+    "title"	  => \$opt_title
+  ) || die;
+
+usage() unless (@ARGV);
+
+#----------------------------------------------------------------------
+
+my %index = load_index();
+
+my (%list, %years);
+foreach my $file (@ARGV) {
+  load_list($file, \%list, \%index);
+}
+
+my @docs = keys %list;
+foreach my $doc (@docs) {
+  find_dependencies($doc, \%list, \%index, 1);
+}
+find_orphans(\%list) if ($opt_no_orphans);
+clean_list(\%list);
+
+output_header();
+output_year_list(\%list, \%years);
+output_rfcs(\%list);
+output_edges(\%list);
+output_year_rank(\%years);
+# output_index(\%list);
+output_footer();
+
+#----------------------------------------------------------------------
+
+sub load_index() {
+
+  my $file = "rfc-index.xml";
+  my $dump = "rfc-index.dump";
+  my $xml;
+
+  if (!-f $dump && !-f $file) {
+    print STDERR <<__EOT__;
+RFC index not found.  Please download:
+
+    ftp://ftp.rfc-editor.org/in-notes/rfc-index.xml
+
+__EOT__
+    exit(1);
+  }
+
+  if (!-f $dump || (stat($dump))[9] < (stat($file))[9]) {
+    $xml = XMLin($file);
+    nstore($xml, $dump);
+  } else {
+    $xml = retrieve($dump);
+  }
+  die "Couldn't load XML" unless $xml;
+
+  my %rfc;
+  foreach my $ref (@{$xml->{'rfc-entry'}}) {
+    my $docid = $ref->{'doc-id'};
+    $rfc{$docid} = $ref;
+  }
+
+  return %rfc;
+}
+
+sub load_list($$$) {
+  my ($in, $list, $index) = @_;
+  my ($fh);
+  open($fh, '<', $in);
+  while (<$fh>) {
+    s/\s*$//;
+    s/^\s*//;
+    if (m/^T:(.*)$/) {
+      $opt_title = $1 unless (defined($opt_title));
+    } elsif (m/^(-?)(.*)$/) {
+      if ($1 eq '-') {
+	$list->{$2} = undef;
+      } else {
+	$list->{$2} = $index->{$2};
+      }
+    }
+  }
+  close($fh);
+}
+
+sub clean_list($)
+{
+  my ($list) = @_;
+  foreach my $key (keys %{$list}) {
+    delete $list->{$key} unless defined($list->{$key});
+  }
+}
+
+sub add_dependencies($$$) {
+  my ($depend, $list, $index) = @_;
+  if (defined $depend) {
+    $depend = $depend->{'doc-id'};
+    foreach my $doc (ref($depend) eq 'ARRAY' ? @{$depend} : ($depend)) {
+      find_dependencies($doc, $list, $index);
+    }
+  }
+}
+
+sub find_dependencies($$$;$) {
+
+  my ($doc, $list, $index, $top) = @_;
+
+  return unless ($doc =~ /^RFC/);
+
+  my $ref = $index->{$doc};
+  if (exists $list->{$doc}) {
+    return if (!$top || !defined $list->{$doc});
+  } else {
+    $list->{$doc} = $ref;
+  }
+
+  unless ($opt_no_older) {
+    add_dependencies($ref->{'updates'}, $list, $index);
+    add_dependencies($ref->{'obsoletes'}, $list, $index);
+  }
+
+  unless ($opt_no_newer) {
+    add_dependencies($ref->{'updated-by'}, $list, $index);
+    add_dependencies($ref->{'obsoleted-by'}, $list, $index);
+  }
+}
+
+sub find_orphans($) {
+  my ($list) = @_;
+  foreach my $doc (keys %{$list}) {
+    my $ref = $list->{$doc};
+    next if defined($ref->{'updates'}) ||
+	    defined($ref->{'obsoletes'}) ||
+            defined($ref->{'updated-by'}) ||
+            defined($ref->{'obsoleted-by'});
+    delete $list->{$doc};
+  }
+}
+
+#----------------------------------------------------------------------
+
+sub output_header()
+{
+  $opt_title ||= "RFC Dependencies";
+  print <<__EOT__;
+digraph "$opt_title" {
+  node [fontname="Courier",target="_blank"];
+__EOT__
+}
+
+sub output_footer()
+{
+  print <<__EOT__;
+}
+__EOT__
+}
+
+sub output_year_list($$)
+{
+  my ($list, $years) = @_;
+  foreach my $doc (keys %list) {
+    my $year = $list->{$doc}->{'date'}->{'year'};
+    push(@{$years->{$year}}, $doc);
+  }
+
+  my $tmp = join(" -> ", sort { $a <=> $b } keys %{$years});
+  print <<__EOT__
+  {
+    node [shape="plaintext"];
+    edge [arrowhead="none"];
+    $tmp
+  }
+__EOT__
+}
+
+sub output_rfcs($)
+{
+  my ($list) = @_;
+  print <<__EOT__;
+  subgraph {
+    node [fillcolor="yellow",style="filled,rounded",shape="box"];
+__EOT__
+
+  foreach my $doc (sort keys %list) {
+
+    my $ref = $list->{$doc};
+
+    my $title = $ref->{'title'};
+    my $kw = $ref->{'keywords'}->{'kw'};
+    if (ref($kw) eq 'ARRAY') {
+      $kw = join(", ", @{$kw});
+    }
+    if (defined($kw)) {
+      $kw =~ tr/\r\n//d;
+      $title .= ' [' . $kw . ']';
+    }
+    $title =~ s/"/\\"/g;
+    printf '    %s [URL="http://tools.ietf.org/html/%s"][tooltip="%s: %s"]',
+      $doc, lc($doc), $doc, $title;
+
+    my %attrs;
+
+    if (exists $ref->{'obsoleted-by'} ||
+        $ref->{'current-status'} eq 'HISTORIC')
+    {
+      $attrs{'fillcolor'} = '#c0c0c0';
+      $attrs{'color'} = '#a0a0a0';
+    }
+
+    if ($ref->{'current-status'} eq 'BEST CURRENT PRACTICE' ||
+        $ref->{'current-status'} eq 'INFORMATIONAL')
+    {
+      $attrs{'style'} = "filled";
+    }
+
+    if (%attrs) {
+      print "[";
+      while (my ($key => $value) = %attrs) {
+	printf '%s="%s"', $key, $value;
+	delete $attrs{$key};
+	print "," if (%attrs);
+      }
+      print "]";
+    }
+    print ";\n";
+  }
+  printf "  }\n";
+}
+
+sub output_edge_helper($$$;$)
+{
+  my ($list, $doc, $depend, $fmt) = @_;
+  if ($fmt) {
+    $fmt = ' [' . $fmt . ']';
+  } else {
+    $fmt = '';
+  }
+
+  if (defined $depend) {
+    $depend = $depend->{'doc-id'};
+    foreach my $tmp (ref($depend) eq 'ARRAY' ? @{$depend} : ($depend)) {
+      next unless (defined $list->{$tmp});
+      printf "  %s -> %s%s;\n", $doc, $tmp, $fmt;
+    }
+  }
+}
+
+sub output_edges($)
+{
+  my ($list) = @_;
+  foreach my $doc (sort keys %list) {
+    my $ref = $list->{$doc};
+    output_edge_helper($list, $doc, $ref->{'updates'});
+    output_edge_helper($list, $doc, $ref->{'obsoletes'}, 'color="#c0c0c0"');
+  }
+}
+
+sub output_year_rank($)
+{
+  my ($years) = @_;
+  foreach my $year (sort keys %{$years}) {
+    my @list = @{$years{$year}};
+    printf "  { rank = same; %d; %s; }\n", $year, join("; ", @list);
+  }
+}
+
+sub output_index($)
+{
+  my ($list) = @_;
+  print <<__EOT__;
+  subgraph {
+    node [shape="plaintext"];
+    edge [arrowhead="none"];
+__EOT__
+  my $prev;
+  foreach my $doc (sort keys %list) {
+    my $ref = $list->{$doc};
+    my $title = $ref->{'title'};
+    $title =~ s/"/\\"/g;
+    printf '  x%s [label="%s: %s"]', $doc, $doc, $title;
+    print "\n";
+    if (defined($prev)) {
+      printf '  x%s -> x%s;', $prev, $doc;
+      print "\n";
+    }
+    $prev = $doc;
+  }
+print <<__EOT__;
+  }
+__EOT__
+}
