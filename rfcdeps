@@ -37,20 +37,22 @@ usage: rfcdeps [--help] [--no-orphans] [--no-newer] [--no-older] [--title=title]
   --no-newer:    only look for "updates" or "obsoletes" dependencies,
                  and not for "updated-by" or "obsoleted-by"
   --title:       override the graph title
+  --keywords:    include document keywords in tooltips
 
 __EOT__
   exit(0);
 }
 
-my ($opt_no_older, $opt_no_newer, $opt_no_orphans,$opt_title);
+my ($opt_no_older, $opt_no_newer, $opt_no_orphans, $opt_title, $opt_keywords);
 
 my $result = GetOptions(
     "help"	  => sub { usage(); },
     "no-orphans"  => \$opt_no_orphans,
     "no-older"	  => \$opt_no_older,
     "no-newer"	  => \$opt_no_newer,
-    "title"	  => \$opt_title
-  ) || die;
+    "title"	  => \$opt_title,
+    "keywords"    => \$opt_keywords
+) || die;
 
 usage() unless (@ARGV);
 
@@ -236,13 +238,15 @@ __EOT__
     my $ref = $list->{$doc};
 
     my $title = $ref->{'title'};
-    my $kw = $ref->{'keywords'}->{'kw'};
-    if (ref($kw) eq 'ARRAY') {
-      $kw = join(", ", @{$kw});
-    }
-    if (defined($kw)) {
-      $kw =~ tr/\r\n//d;
-      $title .= ' [' . $kw . ']';
+    if ($opt_keywords) {
+	my $kw = $ref->{'keywords'}->{'kw'};
+	if (ref($kw) eq 'ARRAY') {
+	    $kw = join(", ", @{$kw});
+	}
+	if (defined($kw)) {
+	    $kw =~ tr/\r\n//d;
+	    $title .= ' [' . $kw . ']';
+	}
     }
     $title =~ s/"/\\"/g;
     printf '    %s [URL="http://tools.ietf.org/html/%s"][tooltip="%s: %s"]',
