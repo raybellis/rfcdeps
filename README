@@ -51,8 +51,8 @@ document suite.  Similarly RFC 1349 (which updates RFC1123) would result
 in the core IP protocol documents being included.
 
 Some sample configuration files are included in the distribution
-tarball, but note that they are themselves are already obsolete, since
-more RFCs are published all of the time.  If those RFCs "update" or
+tarball, but note that may themselves already be obsolete, since more
+RFCs are published all of the time.  If those RFCs "update" or
 "obsolete" prior RFCs then the script will find them automatically, but
 if they are standalone documents they will need to be added to the
 configuration files manually.
