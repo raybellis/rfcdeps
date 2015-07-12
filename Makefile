@@ -13,8 +13,11 @@ DOTOPTS	=
 	$(DOT) $(DOTOPTS) -Tpng -o $@ $<
 
 TARGETS = dnsproto.svg dnsrr.svg dnsop.svg enum.svg	\
-	  smtp.svg imap.svg pop.svg dkim.svg ntp.svg	\
-	  ipv6.svg sip.svg rtp.svg			\
+	  smtp.svg imap.svg pop.svg dkim.svg idna.svg	\
+	  opsf.svg bgp4.svg				\
+	  ipv6.svg 					\
+	  sip.svg rtp.svg				\
+	  ntp.svg					\
 	  rfcs.svg rfcs-sub.svg
 
 all:	$(TARGETS)
@@ -27,4 +30,4 @@ fetch:
 	wget ftp://ftp.rfc-editor.org/in-notes/rfc-index.xml
 
 clean:
-	$(RM) $(TARGETS)
+	$(RM) *.svg *.dot
