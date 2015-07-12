@@ -14,7 +14,7 @@ DOTOPTS	=
 
 TARGETS = dnsproto.svg dnsrr.svg dnsop.svg enum.svg	\
 	  smtp.svg imap.svg pop.svg dkim.svg idna.svg	\
-	  opsf.svg bgp4.svg				\
+	  ospf.svg bgp4.svg				\
 	  ipv6.svg 					\
 	  sip.svg rtp.svg				\
 	  ntp.svg					\
