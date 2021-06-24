@@ -18,6 +18,7 @@ TARGETS = dnsproto.svg dnsrr.svg dnsop.svg enum.svg	\
 	  arp.svg ipv6.svg 				\
 	  sip.svg rtp.svg				\
 	  ntp.svg					\
+	  epp.svg					\
 	  rfcs.svg rfcs-sub.svg
 
 all:	$(TARGETS)
