@@ -1,8 +1,9 @@
-#!/opt/local/bin/perl -w
+#!/usr/bin/env perl
 
 #----------------------------------------------------------------------
 
 use strict;
+use warnings;
 use Getopt::Long;
 use XML::Simple;
 use Storable qw[nstore retrieve];
@@ -249,7 +250,7 @@ __EOT__
 	}
     }
     $title =~ s/"/\\"/g;
-    printf '    %s [URL="http://tools.ietf.org/html/%s"][tooltip="%s: %s"]',
+    printf '    %s [URL="https://datatracker.ietf.org/doc/html/%s"][tooltip="%s: %s"]',
       $doc, lc($doc), $doc, $title;
 
     my %attrs;
@@ -257,8 +258,8 @@ __EOT__
     if (exists $ref->{'obsoleted-by'} ||
         $ref->{'current-status'} eq 'HISTORIC')
     {
-      $attrs{'fillcolor'} = '#c0c0c0';
-      $attrs{'color'} = '#a0a0a0';
+      $attrs{'fillcolor'} = '#f0f0f0';
+      $attrs{'color'} = '#c0c0c0';
     }
 
     if ($ref->{'current-status'} eq 'BEST CURRENT PRACTICE' ||
@@ -305,7 +306,7 @@ sub output_edges($)
   foreach my $doc (sort keys %list) {
     my $ref = $list->{$doc};
     output_edge_helper($list, $doc, $ref->{'updates'});
-    output_edge_helper($list, $doc, $ref->{'obsoletes'}, 'color="#c0c0c0"');
+    output_edge_helper($list, $doc, $ref->{'obsoletes'}, 'color="#c0c0c0",style=dashed');
   }
 }
 
