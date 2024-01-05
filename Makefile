@@ -1,6 +1,6 @@
 .SUFFIXES: .cfg .dot .svg .png
 
-DOT	= /opt/local/bin/dot
+DOT	= dot
 DOTOPTS	=
 
 .cfg.dot:

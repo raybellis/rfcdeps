@@ -1,3 +1,4 @@
+.direnv/
 rfc-index.xml
 rfc-index.dump
 *.dot
