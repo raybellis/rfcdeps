@@ -93,7 +93,7 @@ sub load_index() {
     print STDERR <<__EOT__;
 RFC index not found.  Please download:
 
-    ftp://ftp.rfc-editor.org/in-notes/rfc-index.xml
+    https://www.rfc-editor.org/rfc-index.xml
 
 __EOT__
     exit(1);
