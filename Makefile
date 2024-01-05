@@ -28,7 +28,7 @@ rfcs-sub.dot:	rfcs.cfg
 
 fetch:
 	$(RM) rfc-index.xml
-	wget ftp://ftp.rfc-editor.org/in-notes/rfc-index.xml
+	wget https://www.rfc-editor.org/rfc-index.xml
 
 clean:
 	$(RM) *.svg *.dot
